@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+	<meta charset="UTF-8">
+    <title>Smart Inventory Dashboard</title>
+	<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+    body {
+        font-family: 'Segoe UI', sans-serif;
+        margin: 0;
+        background: linear-gradient(to right, #eef2f3, #dfe9f3);
+    }
+
+    header {
+        background: linear-gradient(to right, #1d2671, #c33764);
+        color: white;
+        padding: 20px;
+        text-align: center;
+        font-size: 26px;
+        letter-spacing: 1px;
+    }
+	
+	.chart-container {
+	    display: flex;
+	    justify-content: space-around;
+	    flex-wrap: wrap;
+	}
+
+	.chart-box {
+	    width: 550px;
+	    height: 400px;
+	    margin: 20px auto;
+	    padding: 10px;
+	    background: #fff;
+	    border-radius: 10px;
+	    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+	}
+
+    .container {
+        padding: 30px;
+    }
+
+    .card {
+        background: white;
+        padding: 20px;
+        margin-bottom: 25px;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        transition: 0.3s;
+    }
+
+    .card:hover {
+        transform: translateY(-5px);
+    }
+
+    h2 {
+        margin-bottom: 15px;
+        color: #2c3e50;
+    }
+
+    button {
+        padding: 10px 18px;
+        border: none;
+        background: linear-gradient(to right, #36d1dc, #5b86e5);
+        color: white;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: bold;
+    }
+
+    button:hover {
+        opacity: 0.9;
+    }
+
+    input {
+        padding: 10px;
+        margin-right: 10px;
+        border-radius: 5px;
+        border: 1px solid #ccc;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+    }
+
+    th {
+        background: #2c3e50;
+        color: white;
+    }
+
+    th, td {
+        padding: 10px;
+        text-align: center;
+        border-bottom: 1px solid #ddd;
+    }
+
+    tr:hover {
+        background: #f2f2f2;
+    }
+
+    .result {
+        margin-top: 10px;
+        font-weight: bold;
+        color: #27ae60;
+    }
+</style>
+
+
+</head>
+
+<body>
+
+<header>
+    🚀 Smart Inventory Management System
+</header>
+
+<div class="container">
+
+<div class="card">
+    <h2>📦 Product List</h2>
+    <button onclick="loadProducts()">Load Products</button>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Category</th>
+                <th>Price (₹)</th>
+                <th>Quantity</th>
+            </tr>
+        </thead>
+        <tbody id="productTable"></tbody>
+    </table>
+</div>
+
+<div class="card">
+    <h2>📊 Sales List</h2>
+    <button onclick="loadSales()">Load Sales</button>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Product ID</th>
+                <th>Quantity Sold</th>
+				<th>Date</th>
+            </tr>
+        </thead>
+        <tbody id="salesTable"></tbody>
+    </table>
+</div>
+
+<div class="card">
+    <h2>🔮 Predict Demand</h2>
+    <input type="number" id="productId" placeholder="Enter Product ID">
+    <button onclick="predict()">Predict</button>
+    <p class="result" id="result"></p>
+</div>
+
+<div class="card">
+    <h2>📈 Inventory Chart</h2>
+    <button onclick="loadChart()">Load Chart</button>
+
+    <div class="chart-box">
+        <canvas id="salesChart"></canvas>
+    </div>
+</div>
+
+<div class="card">
+    <h2>📦 Category Distribution</h2>
+    <button onclick="loadPieChart()">Load Category Chart</button>
+
+    <div class="chart-box">
+        <canvas id="pieChart"></canvas>
+    </div>
+</div>
+
+</div>
+
+
+let selectedProductId = null;
+<script>
+
+function loadProducts() {
+    fetch('/api/products')
+        .then(res => res.json())
+        .then(data => {
+            let table = document.getElementById("productTable");
+            table.innerHTML = "";
+
+            data.forEach(p => {
+                let row = `<tr>
+                    <td>${p.id}</td>
+                    <td>${p.name}</td>
+                    <td>${p.category}</td>
+                    <td>${p.price}</td>
+                    <td>${p.quantity}</td>
+                </tr>`;
+                table.innerHTML += row;
+            });
+        });
+}
+
+function loadSales() {
+    fetch('/api/sales')
+        .then(res => res.json())
+        .then(data => {
+            let table = document.getElementById("salesTable");
+            table.innerHTML = "";
+
+            data.forEach(s => {
+                let row = `
+                    <tr>
+                        <td>${s.productId}</td>
+                        <td>${s.quantitySold}</td>
+						<td>${s.date}</td>
+                    </tr>`;
+                table.innerHTML += row;
+            });
+        });
+}
+
+
+function predict() {
+let id = document.getElementById("productId").value;
+selectedProductId = id;   // store ID
+
+
+fetch('/api/predict/' + id)
+    .then(res => res.text())
+    .then(data => {
+        document.getElementById("result").innerText =
+            "Predicted Demand: " + data;
+    });
+
+
+}
+
+
+let chart;
+
+function loadChart() {
+    let id = document.getElementById("productId").value;
+
+    if (!id) {
+        alert("Enter Product ID first");
+        return;
+    }
+
+    // Get product + prediction together
+    Promise.all([
+        fetch('/api/products').then(res => res.json()),
+        fetch('/api/predict/' + id).then(res => res.text())
+    ])
+    .then(([products, prediction]) => {
+
+        let selectedProduct = products.find(p => p.id == id);
+
+        if (!selectedProduct) {
+            alert("Invalid Product ID");
+            return;
+        }
+
+        const ctx = document.getElementById('salesChart').getContext('2d');
+
+        if (chart) {
+            chart.destroy();
+        }
+
+        chart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Available Quantity', 'Predicted Demand'],
+                datasets: [{
+                    label: selectedProduct.name,
+                    data: [
+                        selectedProduct.quantity,
+                        parseFloat(prediction)
+                    ],
+                    backgroundColor: [
+                        'rgba(52, 152, 219, 0.7)',
+                        'rgba(231, 76, 60, 0.7)'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+				maintainAspectRatio: false,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Product Analysis'
+                    }
+                }
+            }
+        });
+
+    });
+}
+
+let pie;
+
+function loadPieChart() {
+    fetch('/api/products')
+        .then(res => res.json())
+        .then(products => {
+
+            let categoryMap = {};
+
+            // Count products per category
+            products.forEach(p => {
+                if (categoryMap[p.category]) {
+                    categoryMap[p.category] += p.quantity;
+                } else {
+                    categoryMap[p.category] = p.quantity;
+                }
+            });
+
+            let labels = Object.keys(categoryMap);
+            let values = Object.values(categoryMap);
+
+            const ctx = document.getElementById('pieChart').getContext('2d');
+
+            if (pie) {
+                pie.destroy();
+            }
+
+            pie = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: [
+                            '#3498db',
+                            '#e74c3c',
+                            '#2ecc71',
+                            '#f1c40f',
+                            '#9b59b6'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+					maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Stock Distribution by Category'
+                        }
+                    }
+                }
+            });
+
+        });
+}
+
+</script>
+
+</body>
+</html>
+
