@@ -254,10 +254,7 @@ This project helped in understanding:
 - Cloud deployment using Render
 - Dashboard and chart visualization
 
----
 
 
 
-# 📄 License
 
-This project is developed for educational and internship learning purposes.
